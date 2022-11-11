@@ -82,18 +82,25 @@ class LSH:
                 buckets[i][hash(str(doc)) % bucket_cnt].append(k)
 
         # get candidate pairs
-        candidate_pairs = set()
+        candidate_pairs = dict()
         for band in buckets:
             for slot in band:
                 if len(slot) > 1:
                     for c in itertools.combinations(slot, 2):
                         c_frozen = frozenset(c)
-                        candidate_pairs.add(c_frozen)
+                        if c_frozen in candidate_pairs:
+                            candidate_pairs[c_frozen] += 1
+                        else:
+                            candidate_pairs[c_frozen] = 1
+
         return candidate_pairs
 
     def lsh(self, signature, band_cnt, similarity, bucket_cnt=1_000):
         # get candidate pairs
         candidate_pairs = self.get_candidate_pairs(signature, band_cnt, bucket_cnt)
+        # similarity threshold
+        row_cnt = signature.shape[1] // band_cnt
+        print(f"LSH tuned for {round((1 / band_cnt) ** (1 / row_cnt) * 100, 1)}% similarity")
         res = []
         comparator = CompareSignatures()
         for pair in candidate_pairs:
@@ -103,54 +110,55 @@ class LSH:
         return res
 
 
-def naive_similarity(doc_cnt, threshold):
-    shingler = Shingling(3)
-    similarities = []
-    for i in range(doc_cnt):
-        for o in range(doc_cnt):
-            if i > o:
-                d1 = load_doc(o)
-                d2 = load_doc(i)
-
-                s1 = shingler.get_shingles(d1)
-                s2 = shingler.get_shingles(d2)
-                similarities.append((CompareSets().jaccard_similarity(s1, s2), f"{i}-{o}"))
-        print(i)
-
+def filter_results(data, similarities, threshold):
     filtered = filter(lambda x: x[0] > threshold, similarities)
     sorted_sim = sorted(filtered, key=lambda x: x[0])
-    return sorted_sim
+    return [(data[k[1][0]][0], data[k[1][1]][0]) for k in sorted_sim]
 
 
-def minhash_similarity(doc_cnt, threshold):
-    data = load_data(doc_cnt)
-    shingler = Shingling(3)
+def naive_similarity(threshold, shingle_len):
+    data = load_data(-1)
+    shingler = Shingling(shingle_len)
+    data_shingles = [shingler.get_shingles(doc[1]) for doc in data]
     similarities = []
-    data_shingles = [shingler.get_shingles(doc) for doc in data]
+    for i, doc_i in enumerate(data_shingles):
+        for o, doc_o in enumerate(data_shingles):
+            if i > o:
+                similarities.append((CompareSets().jaccard_similarity(doc_i, doc_o), (i, o)))
+    return filter_results(data, similarities, threshold)
+
+
+def minhash_similarity(threshold, shingle_len, hasher_cnt):
+    data = load_data(-1)
+    shingler = Shingling(shingle_len)
+    similarities = []
+    data_shingles = [shingler.get_shingles(doc[1]) for doc in data]
     # print("shingled")
-    minhash = MinHashing(100)
+    minhash = MinHashing(hasher_cnt)
     signature = minhash.minhash(data_shingles)
     for i, val_i in enumerate(signature):
         for o, val_o in enumerate(signature):
             if i > o:
-                similarities.append((CompareSignatures().compare(val_i, val_o), f"{i}-{o}"))
-    filtered = filter(lambda x: x[0] > threshold, similarities)
-    sorted_sim = sorted(filtered, key=lambda x: x[0])
-    return sorted_sim
+                similarities.append((CompareSignatures().compare(val_i, val_o), (i, o)))
+    return filter_results(data, similarities, threshold)
+
+
+def lsh(threshold, shingle_len, hasher_cnt):
+    data = load_data()
+    shingler = Shingling(shingle_len)
+    similarities = []
+    data_shingles = [shingler.get_shingles(doc[1]) for doc in data]
+    # print("shingled")
+    minhash = MinHashing(hasher_cnt)
+    signature = minhash.minhash(data_shingles)
+    res = LSH().lsh(signature, 10, threshold)
+    return [(data[r[0]][0], data[r[1]][0]) for r in res]
 
 
 if __name__ == "__main__":
-    doc_cnt = 199
-    threshold = 0.75
-    sim = 0.85
-    # print(naive_similarity(doc_cnt, sim))
-    print(minhash_similarity(doc_cnt, sim))
-
-    data = load_data()
-    shingler = Shingling(3)
-    similarities = []
-    data_shingles = [shingler.get_shingles(doc) for doc in data]
-    # print("shingled")
-    minhash = MinHashing(100)
-    signature = minhash.minhash(data_shingles)
-    print(LSH().lsh(signature, 10, sim))
+    sim = 0.80
+    shing = 3
+    hashers = 100
+    print(naive_similarity(sim, shing))
+    print(minhash_similarity(sim, shing, 100))
+    print(lsh(sim, shing, 100))

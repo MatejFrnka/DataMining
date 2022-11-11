@@ -33,7 +33,7 @@ def load_data(cnt=-1):
             filename = os.path.join("data", file)
             f = open(filename, 'r', encoding='utf-8', errors='ignore')
             dataFile = f.read()
-            documents.append(dataFile)
+            documents.append((file, dataFile))
             if cnt == len(documents):
                 return documents
     return documents

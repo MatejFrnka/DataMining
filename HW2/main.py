@@ -4,7 +4,7 @@ from itertools import combinations
 
 class Apriori:
     @staticmethod
-    def get_combinations_l_1(data):
+    def get_combinations_l_0(data):
         """
         :param data: Array of sets - each set containing the row in the dataset
         :return: Returns a set of frozen sets of size 1. Contains all items from data
@@ -43,7 +43,7 @@ class Apriori:
         :param support: support
         :param k: size of sets in the subsets
         :param data: the dataset
-        :return: filtered array of candidate subsets
+        :return: filtered dictionary with candidate sets as keys and their counts as values
         """
         subset_cnt = {subset: 0 for subset in candidate_subsets}
         for item in data:
@@ -53,10 +53,10 @@ class Apriori:
                     subset_cnt[frozenset(comb)] += 1
         # only return subsets that are frequent enough
         threshold_cnt = len(data) * support
-        return [subset for subset, val in subset_cnt.items() if val > threshold_cnt]
+        return {subset: val for subset, val in subset_cnt.items() if val > threshold_cnt}
 
     @staticmethod
-    def find_frequent(support, k, data):
+    def find_frequent(support, data):
         """
         This function uses the A-priori pruning principle - if there is any item-set that is infrequent,
         its superset is also not frequent. The function starts with generating subsets of size 1 and then increases
@@ -66,34 +66,53 @@ class Apriori:
         :param data: array of sets representing the dataset
         :return: array of frozen sets with frequency above the support
         """
-        assert k > 0
         assert support >= 0
         assert support <= 1
-        t = time.time()
+
+        l = list()
 
         # generate subsets of size 1
-        l_1 = Apriori.get_combinations_l_1(data)
-
+        t = time.time()
+        l_1 = Apriori.get_combinations_l_0(data)
         # filter out the infrequent subsets
-        l_1 = Apriori.check(l_1, support, 1, data)
+        l_1_dict = Apriori.check(l_1, support, 1, data)
         print(time.time() - t)
-        l_prev = l_1
-        for i in range(2, k + 1):
+        if len(l_1_dict) == 0:
+            return l
+
+        l.append(l_1_dict)
+        k = 2
+        while True:
             t = time.time()
 
             # generate subsets of size i
-            l_curr = Apriori.get_combinations(l_1, l_prev)
+            l_k = Apriori.get_combinations(l_1_dict.keys(), l[-1])
 
             # filter out the infrequent subsets
-            l_curr = Apriori.check(l_curr, support, i, data)
+            l_k_dict = Apriori.check(l_k, support, k, data)
 
             print(time.time() - t)
-            l_prev = l_curr
-        return l_prev
+            if len(l_k_dict) == 0:
+                return l
+            l.append(l_k_dict)
+            k += 1
 
     @staticmethod
     def find_associated(support, confidence, data):
-        ...
+        frequent_array = Apriori.find_frequent(support, data)
+        # get all combinations
+        comb = set()
+        for frequent in frequent_array:
+            for frequent_set, frequent_count in frequent.items():
+                for i in range(1, len(frequent_set)):
+                    for frequent_subset in combinations(frequent_set, i):
+                        frequent_subset = frozenset(frequent_subset)
+                        subset_count = frequent_array[i - 1][frequent_subset]
+                        c = frequent_count / subset_count
+                        if c > confidence:
+                            comb.add((frequent_subset, frequent_set - frequent_subset))
+        return comb
+
 
 class DataLoader:
     res = []
@@ -112,6 +131,17 @@ class DataLoader:
         return res
 
 
-# d = {frozenset([1, 2, 3]), frozenset([1, 2]), frozenset([5, 6, 7, 8, 9]), frozenset([1, 2, 3, 4, 5, 6])}
-d = DataLoader.load("data/T10I4D100K.dat")
-print(Apriori().find_frequent(0.01, 4, d))
+if __name__ == "__main__":
+    # d = {frozenset([1, 2, 3]), frozenset([1, 2]), frozenset([5, 6, 7, 8, 9]), frozenset([1, 2, 3, 4, 5, 6])}
+    # d = {frozenset(['m', 'c', 'b']),
+    #      frozenset(['m', 'p', 'j']),
+    #      frozenset(['m', 'c', 'b', 'n']),
+    #      frozenset(['c', 'j']),
+    #      frozenset(['m', 'p', 'b']),
+    #      frozenset(['m', 'c', 'b', 'j']),
+    #      frozenset(['c', 'b', 'j']),
+    #      frozenset(['b', 'c']),
+    #      }
+    d = DataLoader.load("data/T10I4D100K.dat")
+    asoc = Apriori.find_associated(0.01, 0.5, d)
+    print("adsf")

@@ -99,6 +99,13 @@ class Apriori:
 
     @staticmethod
     def find_associated(support, confidence, data):
+        """
+        Finds association rules
+        :param support: support level the set has to have to be considered for association rules
+        :param confidence: confidence of the association
+        :param data: the dataset to look for the rules in
+        :return: set of tuples where the association is as follows: tuple[0] -> tuple[1]
+        """
         frequent_array = Apriori.find_frequent(support, data)
         # get all combinations
         comb = set()

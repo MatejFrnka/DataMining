@@ -41,8 +41,8 @@ def step4(X):
     :param X: Renormalizes X
     :return: Renormilized X
     """
-    X_pow = np.sum(X ** 2, axis=0) ** (1 / 2)
-    Y = (X / X_pow)
+    X_pow = np.sum(X ** 2, axis=1) ** (1 / 2)
+    Y = (X.T / X_pow).T
     return Y
 
 
@@ -66,8 +66,8 @@ def load_example2():
 
 
 def main():
-    k = 2
-    graph = load_example2()
+    k = 4
+    graph = load_example1()
     A = step1(graph)
     L = step2(A)
     X = step3(L, k)

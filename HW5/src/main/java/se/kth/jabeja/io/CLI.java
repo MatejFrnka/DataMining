@@ -101,8 +101,6 @@ public class CLI {
         annealingPolicy = AnnealingSelectionPolicy.LINEAR;
       } else if (ANNEALING_POLICY.compareToIgnoreCase(AnnealingSelectionPolicy.EXPONENTIAL.toString()) == 0) {
         annealingPolicy = AnnealingSelectionPolicy.EXPONENTIAL;
-      } else if (ANNEALING_POLICY.compareToIgnoreCase(AnnealingSelectionPolicy.IMPROVED_EXP.toString()) == 0) {
-        annealingPolicy = AnnealingSelectionPolicy.IMPROVED_EXP;
       } else {
         throw new IllegalArgumentException("Annealing selection policy is not supported");
       }
